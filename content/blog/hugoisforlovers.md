@@ -44,8 +44,11 @@ Corresponding pseudo commands:
     > 0 tags index created
     > in 27 ms
     > Web Server is available at http://localhost:1313
-    > Press ctrl+c to stop
+    > Press ctrl+c to stop what
 
+ola
+
+    is it cmd
 Once you've gotten here, follow along the rest of this page on your local build.
 
 ## Step 3. Change the docs site
