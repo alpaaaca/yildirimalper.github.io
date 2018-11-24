@@ -8,7 +8,7 @@ layoutdir = "layouts"
 publishdir = "public"
 author = "Alper Yildirim"
 title = "Alper Yildirim"
-disqusshortname = ""
+disqusshortname = "yildirimalper-github-com"
 pluralizelisttitles = false
 
 [permalinks]
@@ -30,8 +30,8 @@ latestpostcount = 6
 github = "yildirimalper"
 email = "yildirimalper92@gmail.com"
 linkedin = "yildirimalper"
-twitter = "example"
-facebook = "facebook_id"
+# twitter = "example"
+# facebook = "facebook_id"
 social_banner = "img/banner.png"
 usesmallsummarycard = true
 posts_navigation = true
