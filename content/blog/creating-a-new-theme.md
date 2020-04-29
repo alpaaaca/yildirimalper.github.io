@@ -4,14 +4,31 @@ date: 2018-03-01
 title: Weighted average in PostgreSQL
 ---
 
+In this post, I will demonstrate how to do a weighted arithmetic mean or average using only sql in postgres.
 
-SQL is a very intuitive and straight-forward query language. It allows anyone to write queries from very simple ones like **`SELECT * FROM users WHERE id = 10`** to very complex and frustrating ones that contain joins, filters, aggregations, and even mathematical operations.
+Sql is an intuitive, straight-forward and yet a very powerful query language. 
+It allows simple operations such as **`SELECT name FROM users WHERE id = 10`** to
+complex and frustrating ones that contain many joins, aggregations, and even mathematical operations.
+ 
+Postgres also supports many functions such as **avg()**, **max()** or **sum()**. 
+However, when it comes to more complex aggregations such as weighted arithmetic average, it does not have a native support.
 
-This post is on how to apply *weighted arithmetic average* in PostgreSQL, which is not a part of SQL's native aggregate functions like **avg()**, **max()** or **sum()**.
+In this post I will demonstrate how to tackle weighted average problem with the use of a logical method than doing any
+of these. In doing so, I will exploit the rule of normalization when doing weighted arithmetic average.
 
-Let's assume that we have a dataset/table such as below which shows different products that our e-commerce company **A** is selling in the market. Attached to 
+Let's assume that we have this table below, which shows different products that our company sells. 
+
+Business question:
+
+What is the average return ratio of the shirts that the company is selling?
+
+`SELECT avg(return_rate) FROM product_returns WHERE product = 'shirt'`
 
 
+
+Easy right?
+
+But 
 
 
 ```
@@ -22,35 +39,63 @@ id         | product     | size       | color       | category     | material   
 3          | pants       | S          | blue        | men          | cotton       | 0.15        | 1
 4          | pants       | L          | brown       | men          | polymer      | 0.05        | 45
 5          | pants       | M          | black       | women        | polymer      | 0.30        | 13
-6          | sweater     | L          | blue        | women        | cotton       | 0.02        | 100
-7          | shirt       | S          | black       | men          | cotton       | 0.01        | 200
+6          | jumper      | L          | blue        | women        | cotton       | 0.02        | 100
+7          | shirt       | S          | black       | men          | cotton       | 0.01        | 100
 8          | jacket      | S          | blue        | women        | leather      | 0.11        | 1000
 9          | pants       | M          | black       | men          | polymer      | 0.12        | 10
 10         | sweater     | S          | black       | women        | cotton       | 0.19        | 50
+...          ...           ...          ...           ...            ...            ...           ...
+100000     | shirt       | M          | orange      | unisex       | cotton       | 0.33        | 3300
 ```
 
 
 
 
-Before we start, we need a bit of background [theory] on weighted arithmetic average. Let's assume that we have a set of variables:
+Before we start, we need a bit of background [theory] on weighted arithmetic average. 
 
-\begin{align}
-x\_{1}, \dots, x\_{n}
-\end{align}
+Let's assume that we have a set of variables:
+
+\begin{equation}
+x\_{1}, \dots, x\_{n} 
+\end{equation}
 
 and a set of weights:
-\begin{align}
+\begin{equation}
 w\_{1}, \dots, w\_{n}
-\end{align}
+\end{equation}
 
 Then the weighted arithmetic average is calculated as the sum of the products of these weights with the variables over the sum of these weights:
 \begin{align}
-\bar{x}=\frac{\sum_{i=1}^{n}{w_ix_i}}{\sum_i{w_i}}
+\bar{x}=\frac{\sum_{i=1}^{n}{w_ix_i}}{\sum_{i=1}^{n}{w_i}}
+\end{align}
+z
+The formulas are simplified when the weights are normalized such that they sum up to 1,
+
+\begin{align}
+\sum_{i-1}^{n}{w'_i}=1
 \end{align}
 
-The formulas are simplified when the weights are normalized such that they sum up to **1**,
+For such normalized weights the weighted mean is then:
+\begin{align}
+\bar{x}=\sum_{i-1}^{n}{w'_i}{x_i}
+\end{align}
 
-So, how can we apply all this to a real world scenario? 
+Note that one can always normalize the weights by making the following transformation on the original weights:
+\begin{align}
+w'\_{i}=\frac{{w_i}}{\sum_{j-1}^{n}{w_j}}
+\end{align}
+
+Using the normalized weight yields the same results as when using the original weights:
+
+\begin{align}
+\bar{x}=\sum_{i=1}^{n}{w'_i}{x_i}=\bbox[yellow]{\sum_{i=1}^{n}{\frac{{w_i}}{\sum_{j=1}^{n}{w_j}}x_i}}=\frac{\sum_{i=1}^{n}{w_i}{x_i}}{\sum_{j=1}^{n}{w_j}}=\frac{\sum_{i=1}^{n}{w_ix_i}}{\sum_{i=1}^{n}{w_i}}
+\end{align}
+
+i highlighted the above formula because that is the part we will tap in and logically hack
+postgreSql to have a weighted arithmetic mean using the beatiful and powerful window functions. Window functions
+are just one of the reasons I love Postgres.
+
+Ok, but how do we apply this to our problem then? 
 
 
 

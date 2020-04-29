@@ -5,7 +5,10 @@ title = "About"
 
 Hey, welcome to my blog!
 
-I am a Berlin-based data engineer & scientist working in the crazy universe of Fintech. I try to share my passion for data, programming, machine learning and Python through this blog :) 
+I am a data engineer based in Berlin. 
+I would like to share my passion for data, programming, machine learning and technology in this blog!
 
 
-I like biking, reading, music and practicing martial arts.
+I like going to nature, biking, reading, and practicing martial arts and yoga.
+
+I am a big fan of audiobooks \& also might be the biggest tea junkie in the world!
