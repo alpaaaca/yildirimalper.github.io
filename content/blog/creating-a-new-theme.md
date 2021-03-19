@@ -1,53 +1,66 @@
 ---
 author: "Alper Yildirim"
 date: 2018-03-01
-title: Weighted average in PostgreSQL
+title: How to calculate weighted average in PostgreSQL like a boss
 ---
 
-In this post, I will demonstrate how to do a weighted arithmetic mean or average using only sql in postgres.
+As the title says it all, this post is on how to perform weighted average in SQL, which is not supported natively, by exploiting some math and window functions in a cunning 😈 yet logical way 🤓
+than trying to pull out a physical solution. 
 
-Sql is an intuitive, straight-forward and yet a very powerful query language. 
-It allows simple operations such as **`SELECT name FROM users WHERE id = 10`** to
-complex and frustrating ones that contain many joins, aggregations, and even mathematical operations.
- 
-Postgres also supports many functions such as **avg()**, **max()** or **sum()**. 
-However, when it comes to more complex aggregations such as weighted arithmetic average, it does not have a native support.
+In normal data engineering, this approach should be avoided at all costs as it will can be super hard to maintain
+but nevertheless this is a very useful trick for quick data analysis.
 
-In this post I will demonstrate how to tackle weighted average problem with the use of a logical method than doing any
-of these. In doing so, I will exploit the rule of normalization when doing weighted arithmetic average.
+Let's use a simple example and imagine that there is we have a products table where we are book-keeping all the products
+we are buying. 
 
-Let's assume that we have this table below, which shows different products that our company sells. 
+```
+id         | product     | quantity   | month        | price
+-----------------------------------------------------------
+1          | lemon       | 1000       | august      | 1000 
+2          | apples      | 13          | march       | 50   
+3          | oranges     | 125          | march       | 300    
+4          | potatoes    | 45          | february    | 100   
+5          | lemon       | 78          | april       | 125
+6          | jumper      | 400          | september   | 1000
+7          | shirt       | 240          | august      | 300
+8          | jacket      | S          | july        | wo
+9          | pants       | M          | may         | m
+10         | sweater     | S          | june        | 
+11         | shirt       | M          | october     |
+....
+....
+```
 
-Business question:
+
+
+```
+id         | disease     | age_group  | color       | gender       | material     | total_case  | deaths 
+-----------------------------------------------------------------------------------------------------------------------
+1          | jacket      | M          | black       | men          | leather      | 10          | 7
+2          | jacket      | S          | brown       | women        | cotton       | 100         | 40
+3          | pants       | S          | blue        | men          | cotton       | 10          | 1
+4          | pants       | L          | brown       | men          | polymer      | 125         | 45
+5          | pants       | M          | black       | women        | polymer      | 300         | 13
+6          | jumper      | L          | blue        | women        | cotton       | 1000        | 100
+7          | shirt       | S          | black       | men          | cotton       | 2000        | 100
+8          | jacket      | S          | blue        | women        | leather      | 400         | 100
+9          | pants       | M          | black       | men          | polymer      | 15          | 10
+10         | sweater     | S          | black       | women        | cotton       | 78          | 50
+11         | shirt       | M          | orange      | unisex       | cotton       | 45          | 33
+```
+and we want to know
 
 What is the average return ratio of the shirts that the company is selling?
 
 `SELECT avg(return_rate) FROM product_returns WHERE product = 'shirt'`
 
-
-
 Easy right?
 
-But 
+But, this is sometimes not quite right, because averaging means that the details will be lost. The more details we have for the data,
+the more 
 
-
-```
-id         | product     | size       | color       | category     | material     | return_rate | nb_of_returns
------------------------------------------------------------------------------------------------------------------------
-1          | jacket      | M          | black       | men          | leather      | 0.70        | 7
-2          | jacket      | S          | brown       | women        | cotton       | 0.40        | 40
-3          | pants       | S          | blue        | men          | cotton       | 0.15        | 1
-4          | pants       | L          | brown       | men          | polymer      | 0.05        | 45
-5          | pants       | M          | black       | women        | polymer      | 0.30        | 13
-6          | jumper      | L          | blue        | women        | cotton       | 0.02        | 100
-7          | shirt       | S          | black       | men          | cotton       | 0.01        | 100
-8          | jacket      | S          | blue        | women        | leather      | 0.11        | 1000
-9          | pants       | M          | black       | men          | polymer      | 0.12        | 10
-10         | sweater     | S          | black       | women        | cotton       | 0.19        | 50
-...          ...           ...          ...           ...            ...            ...           ...
-100000     | shirt       | M          | orange      | unisex       | cotton       | 0.33        | 3300
-```
-
+So, an example to this will be
+ 
 
 
 
@@ -103,26 +116,28 @@ Ok, but how do we apply this to our problem then?
 ```sql
  SELECT 
     T.product,
-    T.size,
+    T.product_size,
     T.color,
     T.category,
     T.material,
-    avg(success_rate),
-    sum(T.w_i::double precision * T.success_rate) / COALESCE(NULLIF(sum(T.w_i), 0::numeric), 1::bigint::numeric)::double precision AS avg_score,
-    sum(T.w_i::double precision * T.success_rate / COALESCE(NULLIF(T.w_j, 0), 1::bigint)::double precision) OVER (PARTITION BY T.os_version, T.marketing_name, T.model, T.event) AS weighted_average_score,
+    avg(return_rate) as avg_return_rate,
+    sum(T.w_i::double precision * T.return_rate) / COALESCE(NULLIF(sum(T.w_i), 0::numeric), 1::bigint::numeric)::double precision AS avg_return,
+    sum(T.w_i::double precision * T.return_rate / COALESCE(NULLIF(T.w_j, 0), 1::bigint)::double precision) OVER (PARTITION BY T.product, T.product_size, T.color, T.categoryy) AS weighted_average_return,
    FROM ( SELECT 
             product,
             size,
             color,
             category,
             material,
-            success_rate,
-            sum(total_events) OVER (PARTITION BY os_version, app_version, marketing_name, model, event) AS w_i,
-            sum(total_events) OVER (PARTITION BY os_version, marketing_name, model, event) AS w_j,
-           FROM device_table
+            return_rate,
+            sum(nb_of_returns) OVER (PARTITION BY product, product_size, color, category, material) AS w_i,
+            sum(nb_of_returns) OVER (PARTITION BY product, product_size, color, category) AS w_j,
+            --sum(nb_of_returns) OVER (PARTITION BY os_version, app_version, marketing_name, model, event) AS w_i,
+            --sum(nb_of_returns) OVER (PARTITION BY os_version, marketing_name, model, event) AS w_j,
+           FROM products
         ) T
-  GROUP BY T.os_version, T.app_version, T.marketing_name, T.model, T.event, T.success_rate, T.w_i, T.w_j
-  ORDER BY T.marketing_name, T.model;
+  GROUP BY T.product, T.product_size, T.color, T.category, T.material, T.avg_return_rate, T.w_i, T.w_j
+  ORDER BY T.product, T.product_size;
 ```
 
 [theory]: https://en.wikipedia.org/wiki/Weighted_arithmetic_mean
