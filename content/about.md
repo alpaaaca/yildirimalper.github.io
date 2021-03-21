@@ -6,9 +6,9 @@ title = "About"
 Hey, welcome to my blog!
 
 I am a software and data engineer based in Berlin. 
-I intend to write about programming, data, technology and also some life stuff here in this blog!
+I write about programming, data, and technology in my blog!
 
 
-I like going to nature, biking, reading, and practicing martial arts and yoga.
+I like nature, biking, reading, and practicing martial arts.
 
-I am a big fan of audiobooks \& also might be the biggest tea junkie 🍵 in the world!
+I am a big fan of audiobooks \& a big tea junkie 🍵 !

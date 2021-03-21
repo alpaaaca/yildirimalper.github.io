@@ -4,7 +4,7 @@ date: 2018-03-01
 title: How to calculate weighted average in PostgreSQL like a boss
 ---
 
-As the title says it all, this post is on how to perform weighted average in SQL, which is not a natively-supported aggregation function like `sum()`, `avg()` and so on. In order to do so, we will exploit some math and window functions 
+As the title says it all, this post is on how to perform weighted average in SQL, which is not a natively-supported aggregation function like `sum()` or `avg()`. In order to do so, we will exploit some math and window functions 
 in a cunning 😈, yet logical way 🤓, than trying to pull out a physical solution. 
 
 In normal data engineering, this approach should **not** be preferred as it can be super hard to maintain, not scalable and confusing to other people
@@ -58,15 +58,15 @@ and we get this result
 
 But wait, this is not right at all! 
 
-Because what we calculated in **(1)** as the unit price for one 🍋 from different retailers was **0.844** and it does not match with **1.4** from the above aggregated result which used
+Because what we calculated in **(1)** as the unit price for one 🍋 from different retailers was **0.844** and this number does not match with **1.4** from the above aggregated result which used
 the natively implemented `avg()`.
 
-This happened, because the unit prices for the same items were just averaged based on the number of rows but instead they should have been **weight averaged**.
+This happened, because the unit prices for the same items were just averaged based on the number of rows. However, they should have been **weight averaged** instead.
 
 Ok, but how are we going to weight-average then in sql way? Bunch of sub-queries? Some crazy joins? Moving the data to some excel sheet? or a jupyter notebook or python code? 
 
 No! There is a simpler way to do this for the very first hand analysis.
-But before we get our hands dirty, we need to delve into a bit of background [theory] on weighted arithmetic mean. (Don't worry we will simplify it later!) 
+But before we get our hands dirty, we need to delve into a bit of background [theory] on weighted arithmetic mean. (Don't worry I will simplify it later!) 
 
 Let's assume that we have a set of variables:
 
@@ -109,8 +109,21 @@ Using the normalized weight yields the same results as when using the original w
 I highlighted the above formula because that is the part we will tap in and logically hack
 PostgreSql to have a weighted arithmetic mean using the power of beautiful window functions. (Window functions are just one of the reasons I love Postgres!)
 
-This seems a lot of math at the first sight and may seem frustrating but all the steps until the highlight are nothing but just normalizing and scaling of individual components over the total to 1.
-In other words or in terms of our lemons, this is saying, "
+This was a lot of math at the first sight and may seem frustrating but normalizing is nothing but scaling sum of individual quantities over the total number to **1**.
+In other words or in terms of our lemons, this is nothing but saying: I want the total number of all the lemons to be **1** and each individual quantity of lemons with different prices 
+to be a number from 0 to 1 so that when you sum them up, the total would be equal to **1**.
+
+
+The total number of lemons is **1318**, so our normalization would be
+
+\begin{align}
+\frac{100}{1318}
++
+\frac{78}{1318}
++
+\frac{240}{1318} = 1
+\end{align}
+
 
 Ok, but how do we convert all of this to SQL in order to solve our problem then? 
 
@@ -131,11 +144,10 @@ SELECT
 FROM products
 ) T
 ```
+* We pre-calculate `w_i` and `w_j` in subquery 
+* and multiply the unit price or `x_i` with `w_i` and divide this by `w_j` over a running sum!
 
-As you can see, we have created one subquery in which we pre-calculate the `w_i` and `w_j` and then in the upper part we are multiplying our value (x) with `w_i` and divide it by `w_j` and run it for the whole data set 
-and this is how we achieve the weighted arithmetic mean
-
-and after we run the query we get (normal avg. is for comparision):
+and that is it! when we run the query, we get (normal avg. is for comparision):
 
 
 ```
@@ -146,7 +158,10 @@ and after we run the query we get (normal avg. is for comparision):
 |      🍎 |            0.9875 | 0.4079641350210971 |
 ```
 
-In real-case scenarios, you may need to deal with `NULL` or `zero` values, therefore you might need to use functions like `COALESCE` and `NULLIF`: 
+This time what we calculated in **(1)** as the unit price for one 🍋 from different retailers, **0.844**, is in-line with the above result **0.8441578148710167** and we can be assured that our calculations 
+are correct!
+
+In real-case scenarios, you may also need to deal with `NULL` or `zero` values, therefore you might need to use functions like `COALESCE` and `NULLIF`: 
 
 ```sql
 sum(T.w_i::double precision * T.price / COALESCE(NULLIF(T.w_j, 0), 1::bigint)::double precision) OVER (PARTITION BY T.product) AS weighted_average,
