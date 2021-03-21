@@ -5,10 +5,10 @@ title: How to calculate weighted average in PostgreSQL like a boss
 ---
 
 As the title says it all, this post is on how to perform weighted average in SQL, which is not a natively-supported aggregation function like `sum()`, `avg()` and so on. In order to do so, we will exploit some math and window functions 
-in a cunning 😈 yet logical way 🤓 than trying to pull out a physical solution. 
+in a cunning 😈, yet logical way 🤓, than trying to pull out a physical solution. 
 
 In normal data engineering, this approach should **not** be preferred as it can be super hard to maintain, not scalable and confusing to other people
-but nevertheless this is a very useful, simple and intuitive hack I figured out for some quick data analysis and getting insights.
+but nevertheless this is a very useful, simple and intuitive hack I figured out myself for some quick data analysis and getting insights.
 
 Let's tackle this with a simple and tangible example. Imagine we are some small shop that buys fruits at different prices (due to fluctuations and different retailers) and we are interested in knowing
 what we are paying for one unit of each different fruit or item in average so that we can figure out what price that we should be selling the item at. 
@@ -40,7 +40,7 @@ Coming back to our shop, assume we have the following arbitrary table where we h
 
 and we want to know what is the average price we are paying for the individual items. 
 
-We open our query editor and quickly type this query
+We open our sql ide and quickly type the following query
 
 ```
 SELECT product, avg(price) FROM products GROUP BY product
@@ -58,11 +58,12 @@ and we get this result
 
 But wait, this is not right at all! 
 
-Because what we calculated in **(1)** as the unit price for one 🍋 from different retailers was **0.844** and it does not match with **1.4** from the above aggregated result that used the natively implemented `avg()`.
+Because what we calculated in **(1)** as the unit price for one 🍋 from different retailers was **0.844** and it does not match with **1.4** from the above aggregated result which used
+the natively implemented `avg()`.
 
-This happened, because the unit price should have been **weighted** but instead they were just averaged based on the number of rows.
+This happened, because the unit prices for the same items were just averaged based on the number of rows but instead they should have been **weight averaged**.
 
-Ok, enough said. Then, how are we going to weight-average then in sql way? Bunch of sub-queries? Some crazy joins? Moving the data to some excel sheet? or a jupyter notebook or python code? 
+Ok, but how are we going to weight-average then in sql way? Bunch of sub-queries? Some crazy joins? Moving the data to some excel sheet? or a jupyter notebook or python code? 
 
 No! There is a simpler way to do this for the very first hand analysis.
 But before we get our hands dirty, we need to delve into a bit of background [theory] on weighted arithmetic mean. (Don't worry we will simplify it later!) 

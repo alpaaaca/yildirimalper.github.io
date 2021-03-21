@@ -4,18 +4,16 @@ date: 2018-03-12
 title: Itertools or no itertools
 ---
 
-When I first saw itertools, I was thinking why anyone would ever need that? 
-However, after using itertools, I can't really think why we should use something else in Python when it comes to data.
+Itertools, in a nutshell, is a beautiful python library that allows lazy computation or way to create iterators. What I like about them is that they could be adapted to work with large quantities of data.
 
-I learned about itertools from Joel Grus in one of his PyData Talks. I found it very interesting that he said something like:
+I learned about itertools in one of [PyData] videos on the internet and the speaker said at the time. 
+
 "When I first saw itertools, I was thinking why anyone would ever need that? After using it, why the hack do I want to use anything else?"
-if you haven't checked it out yet, I strongly encourage you to check it, it was a very fun presentation.
-https://www.youtube.com/watch?v=ThS4juptJjQ
+
+I did not understand this at the time because I was also like "Why would I need such a thing?" and then the more I learned about it and used it in data engineering, the more I ca
 
 This was also the case for me. As a data engineer back then, I was all about `pandas` and was a bit desperate when I had to write code that would not eat up memory
 and would allow me to write .. 
-
-Itertools is a beautiful library that allows lazy computation / evaluation in python and it has got methods such as:
 
 ```python
 count()
@@ -41,6 +39,7 @@ Instead of repeating the examples, I would like to go over a real-case scenario 
 gist of it.
 
 
+[PyData]: https://www.youtube.com/watch?v=ThS4juptJjQ
 [link]: https://docs.python.org/3/library/itertools.html 
  
 
