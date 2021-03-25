@@ -4,23 +4,13 @@ date: 2018-03-01
 title: How to calculate weighted average in PostgreSQL like a boss
 ---
 
-As the title says it all, this post is on how to perform weighted average in SQL, which is not a natively-supported aggregation function like `sum()` or `avg()`. In order to do so, we will exploit some math and window functions 
-in a cunning 😈, yet logical way 🤓, than trying to pull out a physical solution. 
+This post is on how to use **weighted average** and some math to perform weighted average on a particular dataset in Sql.
 
-In normal data engineering, this approach should **not** be preferred as it can be super hard to maintain, not scalable and confusing to other people
-but nevertheless this is a very useful, simple and intuitive hack I figured out myself for some quick data analysis and getting insights.
+## 🍊 Let’s tackle this with a simple and tangible example.
+Imagine we are some small shop that buys fruits at different prices (due to fluctuations and different retailers).
 
-Let's tackle this with a simple and tangible example. Imagine we are some small shop that buys fruits at different prices (due to fluctuations and different retailers) and we are interested in knowing
-what we are paying for one unit of each different fruit or item in average so that we can figure out what price that we should be selling the item at. 
 
-Let's say we bought **1000** lemons from retailer **A** at price **$0.5** each, **78** lemons from retailer **B** at **$1.7** each and **240** lemons from retailer **C** at **2$** each, then what we have paid for **one**
-lemon in average would be calculated using **weighted average mean** such as:
-
-\begin{align}
-\frac{1000 * 0.5 + 78 * 1.7 + 240 * 2}{1000 + 78 + 240} = 0.844 \space \space \space \space \space \space \space \space \space \space (1)
-\end{align}
-
-Coming back to our shop, assume we have the following arbitrary table where we have the information about the product, quantity and the unit price of the item bought from the retailer.
+We do the book-keeping for the items that we buy from different retailers with the following arbitrary table. We have the information about the product, quantity and the unit price.
 
 ```
 | id | product | quantity | price |
@@ -38,35 +28,60 @@ Coming back to our shop, assume we have the following arbitrary table where we h
 
 ```
 
-and we want to know what is the average price we are paying for the individual items. 
+We want to calculate the price we are paying for one unit of each different fruit.
 
-We open our sql ide and quickly type the following query
+To do so for one unit of 🍋 , we would use the weighted average mean such as:
+
+\begin{align}
+\frac{1000 * 0.5 + 78 * 1.7 + 240 * 2}{1000 + 78 + 240} = 0.844 \space \space \space \space \space \space \space \space \space \space (1)
+\end{align}
+
+---------------------------
+
+## 𝌣 Solution — Code
+In order to use window functions simply for this purpose, an easy way will be to use the normalised weighted average formula below!
+
+If you are interested in how this is derived, check the “Hacking the math” below for the steps.
+* We pre-calculate `w_i` and `w_j` in subquery
+* and multiply the unit price (`x_i`) with `w_i` and divide this by `w_j` over a sum!
+
+```sql
+SELECT DISTINCT 
+T.product,
+avg(price) OVER (PARTITION BY T.product) as native_avg,
+sum(T.w_i::double precision * T.price / T.w_j) OVER (PARTITION BY T.product) AS weighted_average
+FROM (
+SELECT 
+  product,
+  quantity,
+  price,
+  sum(quantity) OVER (PARTITION BY product, quantity) AS w_i,
+  sum(quantity) OVER (PARTITION BY product) AS w_j
+FROM products
+) T
+```
+
+and that is it!
+
+_Window functions are just one of the reasons why I love Postgres!_
+
+> Output (native avg. is for comparison):
 
 ```
-SELECT product, avg(price) FROM products GROUP BY product
-``` 
-
-and we get this result
-
-```
-| product |               avg |
-|---------|-------------------|
-|      🍋 |               1.4 |
-|      🍎 |            0.9875 |
-|      🍊 | 2.066666666666667 |
+| product |        native_avg |   weighted_average |
+|---------|-------------------|--------------------|
+|      🍊 | 2.066666666666667 | 2.2105263157894735 |
+|      🍋 |               1.4 | 0.8441578148710167 |
+|      🍎 |            0.9875 | 0.4079641350210971 |
 ```
 
-But wait, this is not right at all! 
+This time our calculation as the unit price for one 🍋 is in-line with the above result **0.8441578148710167** and we can be assured that our calculations are correct!
 
-Because what we calculated in **(1)** as the unit price for one 🍋 from different retailers was **0.844** and this number does not match with **1.4** from the above aggregated result which used
-the natively implemented `avg()`.
+For people who want to dig deeper into a bit of [theory] on weighted arithmetic mean and how the math was hacked for this particular solution, check it below.
 
-This happened, because the unit prices for the same items were just averaged based on the number of rows. However, they should have been **weight averaged** instead.
+--------------------
 
-Ok, but how are we going to weight-average then in sql way? Bunch of sub-queries? Some crazy joins? Moving the data to some excel sheet? or a jupyter notebook or python code? 
-
-No! There is a simpler way to do this for the very first hand analysis.
-But before we get our hands dirty, we need to delve into a bit of background [theory] on weighted arithmetic mean. (Don't worry I will simplify it later!) 
+## 🧮 Hacking the math
 
 Let's assume that we have a set of variables:
 
@@ -106,13 +121,11 @@ Using the normalized weight yields the same results as when using the original w
 \bar{x}=\sum_{i=1}^{n}{w'_i}{x_i}=\bbox[yellow]{\sum_{i=1}^{n}{\frac{{w_i}}{\sum_{j=1}^{n}{w_j}}x_i}}=\frac{\sum_{i=1}^{n}{w_i}{x_i}}{\sum_{j=1}^{n}{w_j}}=\frac{\sum_{i=1}^{n}{w_ix_i}}{\sum_{i=1}^{n}{w_i}}
 \end{align}
 
-I highlighted the above formula because that is the part we will tap in and logically hack
-PostgreSql to have a weighted arithmetic mean using the power of beautiful window functions. (Window functions are just one of the reasons I love Postgres!)
+The highlighted part of the above formula is the part we tapped in and logically hacked PostgreSql!
 
-This was a lot of math at the first sight and may seem frustrating but normalizing is nothing but scaling sum of individual quantities over the total number to **1**.
-In other words or in terms of our lemons, this is nothing but saying: I want the total number of all the lemons to be **1** and each individual quantity of lemons with different prices 
-to be a number from 0 to 1 so that when you sum them up, the total would be equal to **1**.
+--------------------
 
+## 🤯 Or in other words…
 
 The total number of lemons is **1318**, so our normalization would be
 
@@ -124,50 +137,11 @@ The total number of lemons is **1318**, so our normalization would be
 \frac{240}{1318} = 1
 \end{align}
 
+---------------
 
-Ok, but how do we convert all of this to SQL in order to solve our problem then? 
+## ⛱ Sandbox Code
 
-
-
-```sql
-SELECT DISTINCT 
-T.product,
-avg(price) OVER (PARTITION BY T.product) as native_avg,
-sum(T.w_i::double precision * T.price / T.w_j) OVER (PARTITION BY T.product) AS weighted_average
-FROM (
-SELECT 
-  product,
-  quantity,
-  price,
-  sum(quantity) OVER (PARTITION BY product, quantity) AS w_i,
-  sum(quantity) OVER (PARTITION BY product) AS w_j
-FROM products
-) T
-```
-* We pre-calculate `w_i` and `w_j` in subquery 
-* and multiply the unit price or `x_i` with `w_i` and divide this by `w_j` over a running sum!
-
-and that is it! when we run the query, we get (normal avg. is for comparision):
-
-
-```
-| product |        native_avg |   weighted_average |
-|---------|-------------------|--------------------|
-|      🍊 | 2.066666666666667 | 2.2105263157894735 |
-|      🍋 |               1.4 | 0.8441578148710167 |
-|      🍎 |            0.9875 | 0.4079641350210971 |
-```
-
-This time what we calculated in **(1)** as the unit price for one 🍋 from different retailers, **0.844**, is in-line with the above result **0.8441578148710167** and we can be assured that our calculations 
-are correct!
-
-In real-case scenarios, you may also need to deal with `NULL` or `zero` values, therefore you might need to use functions like `COALESCE` and `NULLIF`: 
-
-```sql
-sum(T.w_i::double precision * T.price / COALESCE(NULLIF(T.w_j, 0), 1::bigint)::double precision) OVER (PARTITION BY T.product) AS weighted_average,
-```
-
-With the code below, you can build the schema and the data set and try this yourself and play around with the idea on [SqlFiddle]! Please make sure you choose Postgres as the database engine there!
+With the code below, you can build the schema and the data set and try this yourself on [SqlFiddle]!
 
 ```sql
 CREATE TABLE products
@@ -192,9 +166,12 @@ VALUES
 ('🍊', 900, 2);
 ```
 
-Pretty awesome, right? 
+There are also other ways to go about this in the Sql way (some simpler and some more complicated) but using this formula and window functions in this type of dataset allows more control over the columns and lets one to come up with any sort of normalisation using different columns.
 
 Please leave your comments right below for any feedback, questions or discussions!
+
+Thank you!
+
 
 [theory]: https://en.wikipedia.org/wiki/Weighted_arithmetic_mean
 [window functions]: https://en.wikipedia.org/wiki/Weighted_arithmetic_mean
