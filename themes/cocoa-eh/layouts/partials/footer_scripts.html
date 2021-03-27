@@ -35,7 +35,19 @@
 {{ end }}
 
 {{ template "_internal/google_analytics_async.html" . }}
-{{ template "_internal/google_analytics.html" . }}
+<!--{{ template "_internal/google_analytics.html" . }}-->
+
+
+<!-- Global site tag (gtag.js) - Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=UA-165411925-1"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'UA-165411925-1');
+</script>
+
 
 <script>
   window.onload = function() {
