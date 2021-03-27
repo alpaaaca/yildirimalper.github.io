@@ -1,10 +1,10 @@
 ---
 author: "Alper Yildirim"
 date: 2018-03-01
-title: How to calculate weighted average in PostgreSQL like a boss
+title: On Weighted Average in Postgres with Window Functions
 ---
 
-This post is on how to use **weighted average** and some math to perform weighted average on a particular dataset in Sql.
+This post is on how to use **window functions** and some math to perform weighted average on a particular dataset in Sql.
 
 ## 🍊 Let’s tackle this with a simple and tangible example.
 Imagine we are some small shop that buys fruits at different prices (due to fluctuations and different retailers).
@@ -48,8 +48,7 @@ If you are interested in how this is derived, check the “Hacking the math” b
 ```sql
 SELECT DISTINCT 
 T.product,
-avg(price) OVER (PARTITION BY T.product) as native_avg,
-sum(T.w_i::double precision * T.price / T.w_j) OVER (PARTITION BY T.product) AS weighted_average
+sum(T.w_i * T.price / T.w_j) OVER (PARTITION BY T.product) AS weighted_average
 FROM (
 SELECT 
   product,
@@ -68,14 +67,14 @@ _Window functions are just one of the reasons why I love Postgres!_
 > Output (native avg. is for comparison):
 
 ```
-| product |        native_avg |   weighted_average |
-|---------|-------------------|--------------------|
-|      🍊 | 2.066666666666667 | 2.2105263157894735 |
-|      🍋 |               1.4 | 0.8441578148710167 |
-|      🍎 |            0.9875 | 0.4079641350210971 |
+| product |   weighted_average |
+|---------|--------------------|
+|      🍎 | 0.4079641350210971 |
+|      🍊 |  2.210526315789474 |
+|      🍋 | 0.8441578148710167 |
 ```
 
-This time our calculation as the unit price for one 🍋 is in-line with the above result **0.8441578148710167** and we can be assured that our calculations are correct!
+Our calculation as the unit price for one 🍋 calculated in (1) is in-line with the above result **0.8441578148710167** and we can be assured that our calculations are correct!
 
 For people who want to dig deeper into a bit of [theory] on weighted arithmetic mean and how the math was hacked for this particular solution, check it below.
 
@@ -149,7 +148,7 @@ CREATE TABLE products
   id serial primary key,
   product varchar,
   quantity int,
-  price numeric(6,2)
+  price decimal(4,2)
 );
 
 INSERT INTO products(product, quantity, price)
@@ -157,7 +156,7 @@ VALUES
 ('🍋', 1000, 0.5),
 ('🍋', 78, 1.7),
 ('🍋', 240, 2),
-('🍎', 13, 1);
+('🍎', 13, 1),
 ('🍎', 45, 0.75),
 ('🍎', 800, 0.2),
 ('🍎', 90, 2),
